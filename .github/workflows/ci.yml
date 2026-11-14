@@ -1,0 +1,79 @@
+name: FIELDOPS CI Pipeline
+
+on:
+  push:
+    branches: [ main, 'phase-*' ]
+  pull_request:
+    branches: [ main, 'phase-*' ]
+
+jobs:
+  backend-test:
+    name: Backend Test Suite & PostgreSQL 17 Verification
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: fieldops_db
+          POSTGRES_USER: fieldops_user
+          POSTGRES_PASSWORD: fieldops_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run Backend Regression Test Suite (H2 In-Memory)
+        run: |
+          cd backend
+          chmod +x mvnw
+          ./mvnw test
+
+      - name: Run PostgreSQL 17 Read-Only Transaction Verification (SEC-6301)
+        env:
+          POSTGRES_INTEGRATION_TEST: 'true'
+          POSTGRES_JDBC_URL: 'jdbc:postgresql://localhost:5432/fieldops_db'
+          POSTGRES_USER: 'fieldops_user'
+          POSTGRES_PASSWORD: 'fieldops_password'
+        run: |
+          cd backend
+          ./mvnw test -Dtest=PostgreSqlReadOnlyTransactionIntegrationTest -Dspring.profiles.active=pgtest
+
+  frontend-build:
+    name: Frontend Build & Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build Frontend Production Bundle
+        run: |
+          cd frontend
+          npm run build
