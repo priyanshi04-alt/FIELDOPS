@@ -54,8 +54,12 @@ class OperationsSocketManager {
     this.setStatus('RECONNECTING');
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // When using Vite dev proxy or standard backend on port 8082
-    const host = window.location.port === '5173' ? 'localhost:8082' : window.location.host;
+    // In local Vite dev mode, default directly to localhost:8082 unless proxied;
+    // in production/container build, route through Nginx reverse proxy via window.location.host
+    const isDev = Boolean((import.meta as any).env?.DEV);
+    const host = isDev && window.location.port === '5173'
+      ? 'localhost:8082'
+      : window.location.host;
     const wsUrl = `${protocol}//${host}/ws/websocket`;
 
     try {

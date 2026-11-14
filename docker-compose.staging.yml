@@ -1,0 +1,33 @@
+# ==============================================================================
+# FIELDOPS Docker Compose Staging Override
+# Usage:
+#   docker-compose -f docker-compose.yml -f docker-compose.staging.yml up -d
+# ==============================================================================
+
+services:
+  backend:
+    environment:
+      SPRING_PROFILES_ACTIVE: staging
+      JAVA_OPTS: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  frontend:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  postgres:
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1024M
