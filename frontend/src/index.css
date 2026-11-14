@@ -24,6 +24,19 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 217 91% 60%;
     --radius: 0.5rem;
+
+    /* Adaptive Slate Palette: Light / White Mode */
+    --slate-950: 248 250 252; /* #f8fafc - Page Canvas */
+    --slate-900: 255 255 255; /* #ffffff - Cards, Panels & Modals */
+    --slate-800: 226 232 240; /* #e2e8f0 - Crisp Light Borders */
+    --slate-700: 203 213 225; /* #cbd5e1 - Hover / Input Borders */
+    --slate-600: 148 163 184; /* #94a3b8 - Subtle Elements */
+    --slate-500: 100 116 139; /* #64748b - Muted Captions */
+    --slate-400: 71 85 105;   /* #475569 - High-Legibility Secondary Text */
+    --slate-300: 51 65 85;    /* #334155 - Subheaders */
+    --slate-200: 30 41 59;    /* #1e293b - Body & Card Titles */
+    --slate-100: 15 23 42;    /* #0f172a - Headings */
+    --slate-50:  2 6 23;      /* #020617 - Deepest Contrast */
   }
 
   .dark {
@@ -47,6 +60,19 @@
     --input: 216 34% 15%;
     --ring: 217 91% 60%;
     --radius: 0.5rem;
+
+    /* Adaptive Slate Palette: Dark Mode Baseline */
+    --slate-950: 2 6 23;      /* #020617 - Deep Canvas */
+    --slate-900: 15 23 42;    /* #0f172a - Dark Card */
+    --slate-800: 30 41 59;    /* #1e293b - Dark Border */
+    --slate-700: 51 65 85;    /* #334155 - Hover Border */
+    --slate-600: 71 85 105;   /* #475569 */
+    --slate-500: 100 116 139; /* #64748b */
+    --slate-400: 148 163 184; /* #94a3b8 */
+    --slate-300: 203 213 225; /* #cbd5e1 */
+    --slate-200: 226 232 240; /* #e2e8f0 */
+    --slate-100: 241 245 249; /* #f1f5f9 */
+    --slate-50:  248 250 252; /* #f8fafc */
   }
 }
 
@@ -92,4 +118,104 @@
 }
 .custom-marker-pin:hover {
   transform: scale(1.15);
+}
+
+/* -------------------------------------------------------------
+ * WHITE / LIGHT MODE POLISH OVERRIDES
+ * Applies when html does not have .dark class
+ * ----------------------------------------------------------- */
+html:not(.dark) body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+html:not(.dark) h1.text-white,
+html:not(.dark) h2.text-white,
+html:not(.dark) h3.text-white,
+html:not(.dark) h4.text-white,
+html:not(.dark) .text-white:not([class*="bg-"]):not(button):not(.leaflet-popup-content *):not(.custom-marker-pin *):not(.custom-stop-marker-pin *) {
+  color: #0f172a !important;
+}
+
+html:not(.dark) header {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+html:not(.dark) aside {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) main {
+  background-color: #f8fafc !important;
+}
+
+html:not(.dark) input,
+html:not(.dark) select,
+html:not(.dark) textarea {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+html:not(.dark) .border-slate-800 {
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+}
+
+html:not(.dark) .border-slate-800\/80,
+html:not(.dark) .border-slate-800\/90,
+html:not(.dark) .border-slate-800\/60 {
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) table thead {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+html:not(.dark) table tr {
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) table tr:hover {
+  background-color: #f8fafc !important;
+}
+
+html:not(.dark) .leaflet-popup-content-wrapper {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
+}
+
+html:not(.dark) .leaflet-popup-tip {
+  background: #ffffff !important;
+}
+
+html:not(.dark) .recharts-default-tooltip {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1) !important;
+}
+
+html:not(.dark) .recharts-tooltip-item {
+  color: #0f172a !important;
+}
+
+html:not(.dark) ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+
+html:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }

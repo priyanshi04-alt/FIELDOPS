@@ -17,27 +17,47 @@ import {
   Moon,
   Menu,
   X,
-  Radio,
   Shield,
   HelpCircle,
+  ShieldAlert,
+  SlidersHorizontal,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/AuthContext';
+import { useTheme } from '@/features/theme/ThemeContext';
 import { Logo } from '@/components/common/Logo';
 import { NotificationPopover } from '@/components/common/NotificationPopover';
 import { Role } from '@/types';
+import { useOperationsSocket } from '@/services/operationsSocket';
+import { alertsApi } from '@/services/api';
 
 export const AppLayout: React.FC = () => {
   const { user, logout, quickLogin } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [isDark, setIsDark] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Phase 3 Real-Time WebSocket connection status
+  const { status, isLive } = useOperationsSocket();
+  const isConnecting = status === 'RECONNECTING';
+
+  // Phase 3 Active Operational Alerts Count
+  const { data: activeAlerts = [] } = useQuery({
+    queryKey: ['alerts', 'active'],
+    queryFn: () => alertsApi.getActive(),
+    refetchInterval: 15000,
+  });
+
+  const activeAlertsCount = activeAlerts.length;
 
   const navItems = [
     { label: 'Overview', to: '/app/overview', icon: LayoutDashboard },
+    { label: 'Simulator', to: '/app/simulator', icon: SlidersHorizontal, badge: 'What-If', badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' },
+    { label: 'Alerts', to: '/app/alerts', icon: ShieldAlert, badge: activeAlertsCount > 0 ? `${activeAlertsCount}` : undefined, badgeColor: 'bg-rose-500/20 text-rose-400 border-rose-500/30' },
     { label: 'Work Orders', to: '/app/work-orders', icon: ClipboardList, badge: '53' },
     { label: 'Technicians', to: '/app/technicians', icon: Users, badge: '21' },
     { label: 'Schedule', to: '/app/schedule', icon: Calendar },
@@ -46,15 +66,6 @@ export const AppLayout: React.FC = () => {
     { label: 'Analytics', to: '/app/analytics', icon: BarChart3 },
     { label: 'Settings', to: '/app/settings', icon: Settings },
   ];
-
-  const toggleTheme = () => {
-    setIsDark(!isDark);
-    if (!isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,14 +103,32 @@ export const AppLayout: React.FC = () => {
           <Logo collapsed={false} to="/app/overview" className="hidden lg:flex" />
           <Logo collapsed={true} to="/app/overview" className="flex lg:hidden" />
 
-          {/* Telemetry live status indicator */}
+          {/* Telemetry live status indicator (Phase 3 WebSocket) */}
           <div className="hidden md:flex items-center gap-2 pl-4 border-l border-slate-800 ml-2">
             <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              {isLive ? (
+                <>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </>
+              ) : isConnecting ? (
+                <>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                </>
+              ) : (
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-500"></span>
+              )}
             </span>
-            <span className="text-xs font-mono text-slate-400 font-medium">
-              DISPATCH NOC <span className="text-emerald-400 font-semibold">99.98% SLA</span>
+            <span className="text-xs font-mono text-slate-400 font-medium flex items-center gap-1.5">
+              <span>NOC STREAM:</span>
+              {isLive ? (
+                <span className="text-emerald-400 font-semibold tracking-wider">● LIVE</span>
+              ) : isConnecting ? (
+                <span className="text-amber-400 font-semibold tracking-wider">○ RECONNECTING</span>
+              ) : (
+                <span className="text-slate-500 font-semibold tracking-wider">○ OFFLINE</span>
+              )}
             </span>
           </div>
         </div>
@@ -148,10 +177,21 @@ export const AppLayout: React.FC = () => {
 
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors focus:outline-none"
-            title="Toggle Theme"
+            className="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors focus:outline-none flex items-center gap-1.5 border border-transparent hover:border-slate-700/50"
+            title={isDark ? "Switch to White / Light Mode" : "Switch to Dark Mode"}
+            aria-label="Toggle theme mode"
           >
-            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {isDark ? (
+              <>
+                <Sun className="w-4 h-4 text-amber-400" />
+                <span className="hidden md:inline text-[11px] font-medium text-slate-300">Light</span>
+              </>
+            ) : (
+              <>
+                <Moon className="w-4 h-4 text-slate-700" />
+                <span className="hidden md:inline text-[11px] font-medium text-slate-700">Dark</span>
+              </>
+            )}
           </button>
 
           {/* User Profile dropdown */}
@@ -213,7 +253,7 @@ export const AppLayout: React.FC = () => {
                     <div className="flex-1 flex items-center justify-between">
                       <span>{item.label}</span>
                       {item.badge && (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 group-hover:text-slate-200 border border-slate-700/60">
+                        <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${item.badgeColor || 'bg-slate-800 text-slate-400 group-hover:text-slate-200 border-slate-700/60'}`}>
                           {item.badge}
                         </span>
                       )}

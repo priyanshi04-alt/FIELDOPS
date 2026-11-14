@@ -1,0 +1,29 @@
+{
+  "modelName": "INVENTORY_REPLENISHMENT_FORECAST",
+  "modelVersion": "1.0.0",
+  "algorithm": "Ridge Regression (L2 Regularized)",
+  "evaluationDataset": "Synthetic Industrial Maintenance Logs (365 days)",
+  "syntheticDisclaimer": "DEMO / SIMULATION DATA: Synthetic demonstration dataset; results do not represent production performance.",
+  "metrics": {
+    "baselineMae": 3.899,
+    "baselineRmse": 5.104,
+    "modelMae": 3.01,
+    "modelRmse": 3.905,
+    "modelR2": 0.687,
+    "rfMae": 3.115
+  },
+  "intercept": 0.876649117643975,
+  "coefficients": {
+    "rolling_7d_consumption": 0.009754365034429613,
+    "rolling_14d_consumption": 0.04845142796979362,
+    "rolling_30d_consumption": 0.18962062886491765,
+    "rolling_7d_std": 0.052745394031908414
+  },
+  "trainedAt": "2026-10-08T18:40:19.565981",
+  "features": [
+    "rolling_7d_consumption",
+    "rolling_14d_consumption",
+    "rolling_30d_consumption",
+    "rolling_7d_std"
+  ]
+}

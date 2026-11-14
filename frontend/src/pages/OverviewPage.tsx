@@ -16,11 +16,13 @@ import {
   TrendingUp,
   Cpu,
   Zap,
+  Navigation,
 } from 'lucide-react';
-import { dashboardApi, workOrdersApi } from '@/services/api';
+import { dashboardApi, workOrdersApi, routesApi, alertsApi } from '@/services/api';
 import { LiveOperationsMap } from '@/components/map/LiveOperationsMap';
 import { IntelligenceCenter } from '@/components/intelligence/IntelligenceCenter';
-import { WorkOrder, WorkOrderStatus, WorkOrderPriority } from '@/types';
+import { RouteOptimizationPanel } from '@/components/routing/RouteOptimizationPanel';
+import { WorkOrder, WorkOrderStatus, WorkOrderPriority, OptimizedRoute } from '@/types';
 import {
   ResponsiveContainer,
   BarChart,
@@ -33,6 +35,7 @@ import {
 
 export const OverviewPage: React.FC = () => {
   const [cityFilter, setCityFilter] = useState<string>('ALL');
+  const [selectedRoute, setSelectedRoute] = useState<OptimizedRoute | null>(null);
 
   const {
     data: overview,
@@ -48,6 +51,12 @@ export const OverviewPage: React.FC = () => {
   const { data: allWorkOrders = [] } = useQuery({
     queryKey: ['dashboard-work-orders'],
     queryFn: () => workOrdersApi.getAll(),
+  });
+
+  const { data: activeAlerts = [] } = useQuery({
+    queryKey: ['alerts', 'active'],
+    queryFn: () => alertsApi.getActive(),
+    refetchInterval: 15000,
   });
 
   const filteredWorkOrders = React.useMemo(() => {
@@ -250,6 +259,12 @@ export const OverviewPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Phase 3: Route Optimization Panel */}
+      <RouteOptimizationPanel
+        technicians={filteredTechnicians}
+        onRouteSelected={(route) => setSelectedRoute(route)}
+      />
+
       {/* Main Section: Live Operations Map */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -259,6 +274,12 @@ export const OverviewPage: React.FC = () => {
             <span className="text-xs text-slate-500">
               ({filteredTechnicians.length} technicians, {filteredWorkOrders.length} service locations)
             </span>
+            {selectedRoute && (
+              <span className="text-xs font-mono px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center gap-1">
+                <Navigation className="w-3 h-3" />
+                Route Overlay: {selectedRoute.technicianName} ({selectedRoute.totalStops} stops)
+              </span>
+            )}
           </div>
           <span className="text-xs font-mono text-slate-400">
             Coordinate Synch: OpenStreetMap + Carto Dark
@@ -268,7 +289,8 @@ export const OverviewPage: React.FC = () => {
         <LiveOperationsMap
           technicians={filteredTechnicians}
           workOrders={filteredWorkOrders}
-          height="460px"
+          optimizedRoute={selectedRoute}
+          height="480px"
         />
       </div>
 

@@ -1,0 +1,64 @@
+{
+  "modelName": "PREDICTIVE_SLA_BREACH_CLASSIFIER",
+  "modelVersion": "1.0.0",
+  "algorithm": "Logistic Regression (Standardized & Calibrated)",
+  "evaluationDataset": "Synthetic FieldOps Telemetry (1,600 Historical Jobs)",
+  "syntheticDisclaimer": "DEMO / SIMULATION DATA: Synthetic demonstration dataset; results do not represent production performance.",
+  "metrics": {
+    "baselineAuc": 0.5,
+    "baselineF1": 0.774,
+    "modelAuc": 0.981,
+    "modelPrecision": 0.959,
+    "modelRecall": 0.926,
+    "modelF1": 0.942,
+    "rfAuc": 0.965,
+    "rfF1": 0.914
+  },
+  "intercept": 3.1537270632190606,
+  "weights": {
+    "priority_weight": -0.04157615130365983,
+    "remaining_sla_minutes": -0.03099334054211522,
+    "distance_km": -0.01700165611953864,
+    "estimated_travel_minutes": 0.03344816658509221,
+    "service_duration_minutes": 0.023553910908983886,
+    "technician_backlog": 0.415659130277287,
+    "technician_historical_adherence": -4.465640550169686,
+    "route_sequence_position": 1.7494609635468727
+  },
+  "featureMeans": {
+    "priority_weight": 2.2109375,
+    "remaining_sla_minutes": 235.3203125,
+    "distance_km": 24.628828125,
+    "estimated_travel_minutes": 91.9890625,
+    "service_duration_minutes": 89.203125,
+    "technician_backlog": 2.5609375,
+    "technician_historical_adherence": 0.8454609375000001,
+    "route_sequence_position": 2.046875
+  },
+  "featureStds": {
+    "priority_weight": 0.9044364936764494,
+    "remaining_sla_minutes": 161.85629880360648,
+    "distance_km": 13.410481740105721,
+    "estimated_travel_minutes": 56.245526536526384,
+    "service_duration_minutes": 51.38729466253672,
+    "technician_backlog": 1.6940260095682564,
+    "technician_historical_adherence": 0.08362363623175623,
+    "route_sequence_position": 1.0259094669487168
+  },
+  "thresholds": {
+    "onTrackMax": 0.35,
+    "atRiskMax": 0.65,
+    "likelyBreachMin": 0.65
+  },
+  "trainedAt": "2026-10-08T18:41:03.786264",
+  "features": [
+    "priority_weight",
+    "remaining_sla_minutes",
+    "distance_km",
+    "estimated_travel_minutes",
+    "service_duration_minutes",
+    "technician_backlog",
+    "technician_historical_adherence",
+    "route_sequence_position"
+  ]
+}

@@ -1,13 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Logo } from '../components/common/Logo';
+import { useTheme } from '../features/theme/ThemeContext';
 import { 
   ArrowRight, ShieldCheck, Zap, Activity, Users, 
   MapPin, Clock, BarChart3, ChevronRight, CheckCircle2,
-  Cpu, Sparkles, AlertTriangle, Layers
+  Cpu, Sparkles, AlertTriangle, Layers, Sun, Moon
 } from 'lucide-react';
 
 export const LandingPage: React.FC = () => {
+  const { isDark, toggleTheme } = useTheme();
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white">
       {/* 1. NAVBAR */}
@@ -23,7 +25,25 @@ export const LandingPage: React.FC = () => {
             <a href="#resources" className="hover:text-slate-200 transition">Resources</a>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleTheme}
+              title={isDark ? "Switch to White Mode" : "Switch to Dark Mode"}
+              aria-label={isDark ? "Switch to White Mode" : "Switch to Dark Mode"}
+              className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 transition flex items-center gap-1.5 text-xs font-medium"
+            >
+              {isDark ? (
+                <>
+                  <Sun className="w-4 h-4 text-amber-400" />
+                  <span className="hidden sm:inline">White Mode</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="w-4 h-4 text-indigo-400" />
+                  <span className="hidden sm:inline">Dark Mode</span>
+                </>
+              )}
+            </button>
             <Link
               to="/login"
               className="text-sm font-medium text-slate-300 hover:text-white transition px-3 py-1.5"

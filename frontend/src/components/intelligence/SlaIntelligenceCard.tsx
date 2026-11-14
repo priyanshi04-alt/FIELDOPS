@@ -4,7 +4,7 @@ import {
   ShieldAlert, AlertTriangle, CheckCircle2, 
   ChevronDown, ChevronUp, Clock, Info
 } from 'lucide-react';
-import { intelligenceApi } from '@/services/api';
+import { intelligenceApi, predictiveApi } from '@/services/api';
 
 interface SlaIntelligenceCardProps {
   workOrderId: number;
@@ -16,6 +16,12 @@ export const SlaIntelligenceCard: React.FC<SlaIntelligenceCardProps> = ({ workOr
   const { data: slaRisk, isLoading } = useQuery({
     queryKey: ['sla-risk', workOrderId],
     queryFn: () => intelligenceApi.getSlaRisk(workOrderId),
+    enabled: !!workOrderId,
+  });
+
+  const { data: predictiveSla } = useQuery({
+    queryKey: ['predictive-sla', workOrderId],
+    queryFn: () => predictiveApi.getPredictiveSla(workOrderId),
     enabled: !!workOrderId,
   });
 
@@ -113,6 +119,54 @@ export const SlaIntelligenceCard: React.FC<SlaIntelligenceCardProps> = ({ workOr
       <p className="text-xs text-slate-300 leading-relaxed font-sans">
         {slaRisk.summaryRecommendation}
       </p>
+
+      {/* Predictive ML Intelligence Layer (Phase 4) */}
+      {predictiveSla && (
+        <div className="p-3.5 rounded-lg bg-indigo-950/30 border border-indigo-500/30 space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-mono font-bold text-indigo-300 flex items-center gap-1.5">
+              <span>Phase 4 ML Predictive Model</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-200 border border-indigo-500/30">
+                {predictiveSla.algorithm}
+              </span>
+            </span>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+              predictiveSla.finalAssessment === 'LIKELY_BREACH'
+                ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                : predictiveSla.finalAssessment === 'AT_RISK'
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+            }`}>
+              Fused Assessment: {predictiveSla.finalAssessment.replace('_', ' ')}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 text-center text-xs font-mono">
+            <div className="p-2 rounded bg-slate-950/60 border border-slate-800">
+              <span className="text-slate-500 text-[10px] block">DETERMINISTIC</span>
+              <span className="text-slate-200 font-bold">{predictiveSla.deterministicRiskScore}%</span>
+            </div>
+            <div className="p-2 rounded bg-slate-950/60 border border-slate-800">
+              <span className="text-slate-500 text-[10px] block">ML PREDICTED</span>
+              <span className="text-indigo-300 font-bold">{predictiveSla.mlBreachProbability}%</span>
+            </div>
+            <div className="p-2 rounded bg-slate-950/60 border border-slate-800">
+              <span className="text-slate-500 text-[10px] block">FUSED SCORE</span>
+              <span className="text-white font-extrabold">{predictiveSla.fusedRiskScore}%</span>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-indigo-200/90 leading-tight">
+            {predictiveSla.explanation}
+          </p>
+
+          {predictiveSla.syntheticDisclaimer && (
+            <div className="text-[9px] text-amber-400/80 bg-amber-500/10 border border-amber-500/20 rounded p-1.5">
+              ⚠️ {predictiveSla.syntheticDisclaimer}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Expand Contributing Factors */}
       <div className="pt-2 border-t border-slate-800/80">

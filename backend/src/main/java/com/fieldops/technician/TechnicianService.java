@@ -7,13 +7,20 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.fieldops.websocket.OperationsEvent;
+import com.fieldops.websocket.OperationsEventPublisher;
+import com.fieldops.websocket.OperationsEventType;
+
 @Service
 public class TechnicianService {
 
     private final TechnicianRepository technicianRepository;
+    private final OperationsEventPublisher eventPublisher;
 
-    public TechnicianService(TechnicianRepository technicianRepository) {
+    public TechnicianService(TechnicianRepository technicianRepository,
+                             OperationsEventPublisher eventPublisher) {
         this.technicianRepository = technicianRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional(readOnly = true)
@@ -41,6 +48,15 @@ public class TechnicianService {
         Technician t = technicianRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Technician not found with id: " + id));
         t.setStatus(status);
-        return TechnicianDTO.fromEntity(technicianRepository.save(t));
+        Technician saved = technicianRepository.save(t);
+
+        eventPublisher.publish(OperationsEvent.builder()
+                .eventType(OperationsEventType.TECHNICIAN_STATUS_CHANGED)
+                .severity(status == TechnicianStatus.OFFLINE ? "WARNING" : "INFO")
+                .technicianId(saved.getId())
+                .message(String.format("Technician %s status updated to %s", saved.getName(), status))
+                .build());
+
+        return TechnicianDTO.fromEntity(saved);
     }
 }

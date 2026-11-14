@@ -40,6 +40,10 @@ public class DataInitializer implements CommandLineRunner {
     private final InventoryItemRepository inventoryItemRepository;
     private final NotificationRepository notificationRepository;
     private final PasswordEncoder passwordEncoder;
+    private final com.fieldops.alert.AlertService alertService;
+    private final com.fieldops.predictive.PredictiveSlaService predictiveSlaService;
+    private final com.fieldops.predictive.PredictiveInventoryService predictiveInventoryService;
+    private final com.fieldops.predictive.TechnicianPerformanceService technicianPerformanceService;
 
     public DataInitializer(UserRepository userRepository,
                            TechnicianRepository technicianRepository,
@@ -47,7 +51,14 @@ public class DataInitializer implements CommandLineRunner {
                            WorkOrderRepository workOrderRepository,
                            InventoryItemRepository inventoryItemRepository,
                            NotificationRepository notificationRepository,
-                           PasswordEncoder passwordEncoder) {
+                           PasswordEncoder passwordEncoder,
+                           com.fieldops.alert.AlertService alertService,
+                           @org.springframework.beans.factory.annotation.Autowired(required = false)
+                           com.fieldops.predictive.PredictiveSlaService predictiveSlaService,
+                           @org.springframework.beans.factory.annotation.Autowired(required = false)
+                           com.fieldops.predictive.PredictiveInventoryService predictiveInventoryService,
+                           @org.springframework.beans.factory.annotation.Autowired(required = false)
+                           com.fieldops.predictive.TechnicianPerformanceService technicianPerformanceService) {
         this.userRepository = userRepository;
         this.technicianRepository = technicianRepository;
         this.customerRepository = customerRepository;
@@ -55,13 +66,28 @@ public class DataInitializer implements CommandLineRunner {
         this.inventoryItemRepository = inventoryItemRepository;
         this.notificationRepository = notificationRepository;
         this.passwordEncoder = passwordEncoder;
+        this.alertService = alertService;
+        this.predictiveSlaService = predictiveSlaService;
+        this.predictiveInventoryService = predictiveInventoryService;
+        this.technicianPerformanceService = technicianPerformanceService;
     }
 
     @Override
     @Transactional
     public void run(String... args) throws Exception {
         if (userRepository.count() > 0) {
-            log.info("Demo data already seeded. Skipping initialization.");
+            log.info("Demo data already seeded. Verifying identity alignment and running alert evaluation.");
+            ensureAlignedDemoIdentities();
+            alertService.scanAndGenerateDeterministicAlerts();
+            if (predictiveSlaService != null) {
+                predictiveSlaService.scanAndGeneratePredictiveAlerts();
+            }
+            if (predictiveInventoryService != null) {
+                predictiveInventoryService.scanAndGenerateInventoryAlerts();
+            }
+            if (technicianPerformanceService != null) {
+                technicianPerformanceService.scanAndGeneratePerformanceAlerts();
+            }
             return;
         }
 
@@ -73,8 +99,48 @@ public class DataInitializer implements CommandLineRunner {
         seedWorkOrders(technicians, customers);
         seedInventory();
         seedNotifications();
+        alertService.scanAndGenerateDeterministicAlerts();
+        if (predictiveSlaService != null) {
+            predictiveSlaService.scanAndGeneratePredictiveAlerts();
+        }
+        if (predictiveInventoryService != null) {
+            predictiveInventoryService.scanAndGenerateInventoryAlerts();
+        }
+        if (technicianPerformanceService != null) {
+            technicianPerformanceService.scanAndGeneratePerformanceAlerts();
+        }
 
         log.info("FieldOps Demo Data Seeding completed successfully!");
+    }
+
+    private void ensureAlignedDemoIdentities() {
+        String defaultPassword = passwordEncoder.encode("FieldOps@2026!");
+        if (userRepository.findByEmail("rahul.s@fieldops.demo").isEmpty()) {
+            userRepository.save(User.builder()
+                    .email("rahul.s@fieldops.demo")
+                    .passwordHash(defaultPassword)
+                    .fullName("Rahul Sharma")
+                    .role(Role.TECHNICIAN)
+                    .phone("+91 98110 01101")
+                    .organization("Field Engineering Group")
+                    .avatarUrl("https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150")
+                    .active(true)
+                    .build());
+            log.info("Seeded missing technician user: rahul.s@fieldops.demo");
+        }
+        if (userRepository.findByEmail("dispatch@vertexlogistics.in").isEmpty()) {
+            userRepository.save(User.builder()
+                    .email("dispatch@vertexlogistics.in")
+                    .passwordHash(defaultPassword)
+                    .fullName("Pooja Singhania")
+                    .role(Role.CUSTOMER)
+                    .phone("+91 124 4567801")
+                    .organization("Vertex Logistics Park")
+                    .avatarUrl("https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150")
+                    .active(true)
+                    .build());
+            log.info("Seeded missing customer user: dispatch@vertexlogistics.in");
+        }
     }
 
     private void seedUsers() {
@@ -114,11 +180,33 @@ public class DataInitializer implements CommandLineRunner {
                 .build());
 
         userRepository.save(User.builder()
+                .email("rahul.s@fieldops.demo")
+                .passwordHash(defaultPassword)
+                .fullName("Rahul Sharma")
+                .role(Role.TECHNICIAN)
+                .phone("+91 98110 01101")
+                .organization("Field Engineering Group")
+                .avatarUrl("https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150")
+                .active(true)
+                .build());
+
+        userRepository.save(User.builder()
                 .email("customer@fieldops.demo")
                 .passwordHash(defaultPassword)
                 .fullName("Pooja Singhania")
                 .role(Role.CUSTOMER)
                 .phone("+91 98100 45678")
+                .organization("Vertex Logistics Park")
+                .avatarUrl("https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150")
+                .active(true)
+                .build());
+
+        userRepository.save(User.builder()
+                .email("dispatch@vertexlogistics.in")
+                .passwordHash(defaultPassword)
+                .fullName("Pooja Singhania")
+                .role(Role.CUSTOMER)
+                .phone("+91 124 4567801")
                 .organization("Vertex Logistics Park")
                 .avatarUrl("https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150")
                 .active(true)

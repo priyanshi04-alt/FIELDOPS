@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './features/auth/AuthContext';
+import { ThemeProvider } from './features/theme/ThemeContext';
 import { ProtectedRoute } from './features/auth/ProtectedRoute';
 import { AppLayout } from './layouts/AppLayout';
 
@@ -18,6 +19,8 @@ import { CustomersPage } from './pages/CustomersPage';
 import { InventoryPage } from './pages/InventoryPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { AlertsPage } from './pages/AlertsPage';
+import { SimulatorPage } from './pages/SimulatorPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,8 +36,9 @@ export const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AuthProvider>
-          <Routes>
+        <ThemeProvider>
+          <AuthProvider>
+            <Routes>
             {/* Public Marketing Landing Page */}
             <Route path="/" element={<LandingPage />} />
             
@@ -61,6 +65,8 @@ export const App: React.FC = () => {
               <Route path="inventory" element={<InventoryPage />} />
               <Route path="analytics" element={<AnalyticsPage />} />
               <Route path="reports" element={<AnalyticsPage />} />
+              <Route path="alerts" element={<AlertsPage />} />
+              <Route path="simulator" element={<SimulatorPage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
 
@@ -68,7 +74,8 @@ export const App: React.FC = () => {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AuthProvider>
-      </BrowserRouter>
+      </ThemeProvider>
+    </BrowserRouter>
     </QueryClientProvider>
   );
 };

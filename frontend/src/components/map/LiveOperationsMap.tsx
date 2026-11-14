@@ -1,13 +1,14 @@
 import React, { useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
-import { Technician, WorkOrder } from '@/types';
+import { Technician, WorkOrder, OptimizedRoute } from '@/types';
 import { Link } from 'react-router-dom';
-import { ShieldAlert, User, Clock, Phone, MapPin, CheckCircle } from 'lucide-react';
+import { ShieldAlert, User, Clock, Phone, MapPin, CheckCircle, Navigation, Flag, AlertTriangle } from 'lucide-react';
 
 interface LiveOperationsMapProps {
   technicians?: Technician[];
   workOrders?: WorkOrder[];
+  optimizedRoute?: OptimizedRoute | null;
   center?: [number, number];
   zoom?: number;
   height?: string;
@@ -125,14 +126,82 @@ const createWorkOrderIcon = (priority: string, probability: number) => {
   });
 };
 
+const createStopMarkerIcon = (sequenceNumber: number, slaStatus: string) => {
+  const color =
+    slaStatus === 'VIOLATION'
+      ? '#ef4444'
+      : slaStatus === 'AT_RISK'
+      ? '#f59e0b'
+      : '#10b981';
+
+  return L.divIcon({
+    className: 'custom-stop-marker-pin',
+    html: `
+      <div style="
+        position: relative;
+        width: 34px;
+        height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      ">
+        <div style="
+          position: absolute;
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          background: ${color}33;
+        "></div>
+        <div style="
+          width: 26px;
+          height: 26px;
+          border-radius: 50%;
+          background: #090d16;
+          border: 2px solid ${color};
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+          color: ${color};
+          font-weight: 900;
+          font-family: monospace;
+          font-size: 12px;
+        ">
+          ${sequenceNumber}
+        </div>
+      </div>
+    `,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+  });
+};
+
 export const LiveOperationsMap: React.FC<LiveOperationsMapProps> = ({
   technicians = [],
   workOrders = [],
+  optimizedRoute = null,
   center = [28.5355, 77.2500], // Delhi NCR center
   zoom = 10,
   height = '480px',
   selectedId,
 }) => {
+  // Multi-stop polyline path
+  const multiStopPositions = useMemo(() => {
+    if (!optimizedRoute || !optimizedRoute.stops || optimizedRoute.stops.length === 0) {
+      return [];
+    }
+    const coords: [number, number][] = [];
+    if (optimizedRoute.originLat && optimizedRoute.originLon) {
+      coords.push([optimizedRoute.originLat, optimizedRoute.originLon]);
+    }
+    optimizedRoute.stops.forEach((s) => {
+      if (s.latitude && s.longitude) {
+        coords.push([s.latitude, s.longitude]);
+      }
+    });
+    return coords;
+  }, [optimizedRoute]);
+
   return (
     <div className="relative w-full rounded-xl overflow-hidden border border-slate-800 bg-slate-950 shadow-inner" style={{ height }}>
       {/* Map Legend Overlay */}
@@ -148,10 +217,17 @@ export const LiveOperationsMap: React.FC<LiveOperationsMapProps> = ({
           <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50"></span>
           <span>En Route ({technicians.filter((t) => t.status === 'ON_ROUTE').length})</span>
         </div>
-        <div className="flex items-center gap-2 text-slate-400">
-          <span className="w-2.5 h-2.5 rounded bg-rose-500 animate-pulse"></span>
-          <span>SLA At Risk / High Priority</span>
-        </div>
+        {optimizedRoute ? (
+          <div className="flex items-center gap-2 text-cyan-400 pt-1 border-t border-slate-800">
+            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 border border-cyan-300 animate-pulse"></span>
+            <span className="font-medium">Active Multi-Stop Tour ({optimizedRoute.totalStops} Stops)</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-slate-400">
+            <span className="w-2.5 h-2.5 rounded bg-rose-500 animate-pulse"></span>
+            <span>SLA At Risk / Critical</span>
+          </div>
+        )}
       </div>
 
       <MapContainer
@@ -231,8 +307,8 @@ export const LiveOperationsMap: React.FC<LiveOperationsMapProps> = ({
           );
         })}
 
-        {/* Work Order Markers */}
-        {workOrders.map((wo) => {
+        {/* Standard Work Order Markers (rendered when no multi-stop route is focused) */}
+        {!optimizedRoute && workOrders.map((wo) => {
           if (!wo.latitude || !wo.longitude) return null;
           return (
             <Marker
@@ -299,8 +375,106 @@ export const LiveOperationsMap: React.FC<LiveOperationsMapProps> = ({
           );
         })}
 
-        {/* Dynamic Route Intelligence Trajectories */}
-        {workOrders.map((wo) => {
+        {/* Phase 3: Multi-Stop Numbered Markers */}
+        {optimizedRoute && optimizedRoute.stops.map((stop) => {
+          if (!stop.latitude || !stop.longitude) return null;
+          return (
+            <Marker
+              key={`route-stop-${stop.workOrderId}`}
+              position={[stop.latitude, stop.longitude]}
+              icon={createStopMarkerIcon(stop.sequenceNumber, stop.slaStatus)}
+            >
+              <Popup>
+                <div className="p-1 min-w-[260px] text-slate-200">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-300 font-mono font-bold text-xs flex items-center justify-center border border-cyan-500/40">
+                        {stop.sequenceNumber}
+                      </span>
+                      <span className="font-mono font-bold text-sm text-cyan-400">
+                        {stop.workOrderNumber}
+                      </span>
+                    </div>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                        stop.slaStatus === 'VIOLATION'
+                          ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                          : stop.slaStatus === 'AT_RISK'
+                          ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                          : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                      }`}
+                    >
+                      {stop.slaStatus}
+                    </span>
+                  </div>
+
+                  <h4 className="text-xs font-semibold text-slate-100 mb-1 leading-snug">
+                    {stop.title}
+                  </h4>
+                  <p className="text-[11px] text-slate-400 mb-2 truncate">
+                    {stop.customerName} • {stop.address}
+                  </p>
+
+                  <div className="p-2.5 rounded bg-slate-950 border border-slate-800/80 mb-3 space-y-1 font-mono text-[11px]">
+                    <div className="flex justify-between items-center text-slate-400">
+                      <span>Leg Transit:</span>
+                      <span className="text-slate-200">
+                        {stop.distanceFromPreviousKm} km ({stop.travelTimeFromPreviousMinutes} min)
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-slate-400">
+                      <span>Service Duration:</span>
+                      <span className="text-slate-200">{stop.serviceDurationMinutes} min</span>
+                    </div>
+                    <div className="flex justify-between items-center text-slate-400">
+                      <span>Est. Arrival:</span>
+                      <span className="text-cyan-300">
+                        {new Date(stop.estimatedArrival).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-slate-400 pt-1 border-t border-slate-900">
+                      <span>SLA Remaining:</span>
+                      <span className={stop.slaRemainingMinutes < 0 ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
+                        {stop.slaRemainingMinutes} min
+                      </span>
+                    </div>
+                  </div>
+
+                  <Link
+                    to={`/app/work-orders/${stop.workOrderId}`}
+                    className="block w-full py-1.5 text-center text-xs font-medium bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 rounded transition-colors"
+                  >
+                    Open Work Order Details →
+                  </Link>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+
+        {/* Phase 3: Multi-Stop Polyline Vectors */}
+        {multiStopPositions.length > 1 && (
+          <Polyline
+            positions={multiStopPositions}
+            pathOptions={{
+              color: '#06b6d4',
+              weight: 4,
+              dashArray: '8, 8',
+              opacity: 0.95,
+            }}
+          >
+            <Tooltip sticky>
+              <div className="font-mono text-xs">
+                <strong>{optimizedRoute?.technicianName} Optimized Route</strong><br />
+                {optimizedRoute?.totalStops} Stops • {optimizedRoute?.totalDistanceKm} km Total<br />
+                Travel: {optimizedRoute?.totalTravelTimeMinutes} min • Saved: ~{optimizedRoute?.timeSavedMinutes} min
+              </div>
+            </Tooltip>
+          </Polyline>
+        )}
+
+        {/* Standard Single-Leg Route Trajectories (when no multi-stop route is focused) */}
+        {!optimizedRoute && workOrders.map((wo) => {
           if (!wo.technician || !wo.technician.latitude || !wo.technician.longitude || !wo.latitude || !wo.longitude) {
             return null;
           }

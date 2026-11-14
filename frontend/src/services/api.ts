@@ -14,6 +14,15 @@ import {
   SlaRiskResult,
   RouteEstimate,
   DecisionAuditLog,
+  OptimizedRoute,
+  RouteDecisionAudit,
+  OperationalAlert,
+  InventoryForecastDTO,
+  PredictiveSlaResultDTO,
+  TechnicianPerformanceDTO,
+  ScenarioInput,
+  ScenarioResult,
+  ScenarioDecisionAudit,
 } from '@/types';
 
 const API_BASE = '/api';
@@ -200,5 +209,83 @@ export const intelligenceApi = {
     }),
   getAuditTrail: (workOrderId: number): Promise<DecisionAuditLog[]> =>
     request<DecisionAuditLog[]>(`/work-orders/${workOrderId}/audit-trail`),
+};
+
+export const routesApi = {
+  getOptimizedRoute: (technicianId: number): Promise<OptimizedRoute> =>
+    request<OptimizedRoute>(`/technicians/${technicianId}/optimized-route`),
+  optimizeRoute: (technicianId: number): Promise<OptimizedRoute> =>
+    request<OptimizedRoute>(`/technicians/${technicianId}/optimize-route`, {
+      method: 'POST',
+    }),
+  applyRoute: (technicianId: number): Promise<OptimizedRoute> =>
+    request<OptimizedRoute>(`/technicians/${technicianId}/apply-route`, {
+      method: 'POST',
+    }),
+  getRouteSummary: (technicianId: number): Promise<Record<string, any>> =>
+    request<Record<string, any>>(`/technicians/${technicianId}/route-summary`),
+  getRouteAudit: (technicianId: number): Promise<RouteDecisionAudit[]> =>
+    request<RouteDecisionAudit[]>(`/technicians/${technicianId}/route-audit`),
+};
+
+export const alertsApi = {
+  getAll: (params?: { severity?: string; type?: string; status?: string }): Promise<OperationalAlert[]> => {
+    const searchParams = new URLSearchParams();
+    if (params?.severity) searchParams.set('severity', params.severity);
+    if (params?.type) searchParams.set('type', params.type);
+    if (params?.status) searchParams.set('status', params.status);
+    const qs = searchParams.toString();
+    return request<OperationalAlert[]>(`/alerts${qs ? `?${qs}` : ''}`);
+  },
+  getActive: (): Promise<OperationalAlert[]> => request<OperationalAlert[]>('/alerts/active'),
+  getById: (id: number): Promise<OperationalAlert> => request<OperationalAlert>(`/alerts/${id}`),
+  acknowledge: (id: number): Promise<OperationalAlert> =>
+    request<OperationalAlert>(`/alerts/${id}/acknowledge`, {
+      method: 'POST',
+    }),
+  resolve: (id: number, notes?: string): Promise<OperationalAlert> =>
+    request<OperationalAlert>(`/alerts/${id}/resolve`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    }),
+  scan: (): Promise<{ newAlertsCount: number; totalActiveAlerts: number }> =>
+    request<{ newAlertsCount: number; totalActiveAlerts: number }>('/alerts/scan', {
+      method: 'POST',
+    }),
+};
+
+export const predictiveApi = {
+  getInventoryPredictions: (): Promise<InventoryForecastDTO[]> =>
+    request<InventoryForecastDTO[]>('/inventory/predictions'),
+  getInventoryForecast: (id: number): Promise<InventoryForecastDTO> =>
+    request<InventoryForecastDTO>(`/inventory/${id}/forecast`),
+  getReplenishmentRecommendations: (): Promise<InventoryForecastDTO[]> =>
+    request<InventoryForecastDTO[]>('/inventory/replenishment-recommendations'),
+
+  getPredictiveSla: (workOrderId: number): Promise<PredictiveSlaResultDTO> =>
+    request<PredictiveSlaResultDTO>(`/sla/predictive/${workOrderId}`),
+  getBatchPredictiveSla: (): Promise<PredictiveSlaResultDTO[]> =>
+    request<PredictiveSlaResultDTO[]>('/sla/predictive/batch'),
+};
+
+export const performanceApi = {
+  getTechnicianPerformance: (id: number): Promise<TechnicianPerformanceDTO> =>
+    request<TechnicianPerformanceDTO>(`/technicians/${id}/performance`),
+  getLeaderboard: (): Promise<TechnicianPerformanceDTO[]> =>
+    request<TechnicianPerformanceDTO[]>('/technicians/performance/leaderboard'),
+};
+
+export const simulatorApi = {
+  simulate: (input: ScenarioInput): Promise<ScenarioResult> =>
+    request<ScenarioResult>('/simulator/simulate', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  applyScenario: (simulationId: string): Promise<ScenarioResult> =>
+    request<ScenarioResult>(`/simulator/apply/${simulationId}`, {
+      method: 'POST',
+    }),
+  getAuditHistory: (): Promise<ScenarioDecisionAudit[]> =>
+    request<ScenarioDecisionAudit[]>('/simulator/history'),
 };
 

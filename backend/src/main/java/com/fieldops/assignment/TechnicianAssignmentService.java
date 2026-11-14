@@ -15,6 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.fieldops.websocket.OperationsEvent;
+import com.fieldops.websocket.OperationsEventPublisher;
+import com.fieldops.websocket.OperationsEventType;
 
 @Service
 public class TechnicianAssignmentService {
@@ -23,15 +26,18 @@ public class TechnicianAssignmentService {
     private final TechnicianRepository technicianRepository;
     private final AssignmentScoringService scoringService;
     private final DecisionAuditService auditService;
+    private final OperationsEventPublisher eventPublisher;
 
     public TechnicianAssignmentService(WorkOrderRepository workOrderRepository,
                                        TechnicianRepository technicianRepository,
                                        AssignmentScoringService scoringService,
-                                       DecisionAuditService auditService) {
+                                       DecisionAuditService auditService,
+                                       OperationsEventPublisher eventPublisher) {
         this.workOrderRepository = workOrderRepository;
         this.technicianRepository = technicianRepository;
         this.scoringService = scoringService;
         this.auditService = auditService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional(readOnly = true)
@@ -110,6 +116,15 @@ public class TechnicianAssignmentService {
                 explanation,
                 dispatcherEmail
         );
+
+        eventPublisher.publish(OperationsEvent.builder()
+                .eventType(OperationsEventType.WORK_ORDER_ASSIGNED)
+                .severity("INFO")
+                .workOrderId(saved.getId())
+                .technicianId(tech.getId())
+                .message(String.format("Work order %s dispatched to %s (Match: %d%%)",
+                        saved.getWorkOrderNumber(), tech.getName(), assignedScore != null ? assignedScore.getTotalScore() : 90))
+                .build());
 
         return WorkOrderDTO.fromEntity(saved);
     }

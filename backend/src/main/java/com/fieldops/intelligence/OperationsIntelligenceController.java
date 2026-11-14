@@ -13,6 +13,7 @@ import com.fieldops.sla.SlaRiskResult;
 import com.fieldops.sla.SlaRiskService;
 import com.fieldops.workorder.WorkOrderDTO;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,6 +22,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
+@PreAuthorize("hasAnyRole('ADMIN', 'DISPATCHER')")
 public class OperationsIntelligenceController {
 
     private final TechnicianAssignmentService assignmentService;

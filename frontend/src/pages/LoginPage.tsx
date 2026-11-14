@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../features/auth/AuthContext';
+import { useTheme } from '../features/theme/ThemeContext';
 import { Logo } from '../components/common/Logo';
-import { Shield, ArrowRight, Lock, Mail, AlertCircle } from 'lucide-react';
+import { Shield, ArrowRight, Lock, Mail, AlertCircle, Sun, Moon } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { login, quickLogin } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,6 +44,34 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Top action bar: Home & Theme Toggle */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-8 z-20 flex items-center gap-2">
+        <Link
+          to="/"
+          className="text-xs text-slate-400 hover:text-slate-200 transition-colors px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900/60 font-medium"
+        >
+          ← Home
+        </Link>
+        <button
+          onClick={toggleTheme}
+          title={isDark ? "Switch to White Mode" : "Switch to Dark Mode"}
+          aria-label={isDark ? "Switch to White Mode" : "Switch to Dark Mode"}
+          className="px-3 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 transition-all flex items-center gap-1.5 text-xs font-medium shadow-sm"
+        >
+          {isDark ? (
+            <>
+              <Sun className="w-3.5 h-3.5 text-amber-400" />
+              <span>White Mode</span>
+            </>
+          ) : (
+            <>
+              <Moon className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Dark Mode</span>
+            </>
+          )}
+        </button>
+      </div>
+
       {/* Background glow effects */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-10 right-10 w-72 h-72 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />

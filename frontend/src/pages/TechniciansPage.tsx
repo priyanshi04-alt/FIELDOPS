@@ -16,7 +16,7 @@ import {
   X,
   ExternalLink,
 } from 'lucide-react';
-import { techniciansApi } from '@/services/api';
+import { techniciansApi, performanceApi } from '@/services/api';
 import { Technician, TechnicianStatus } from '@/types';
 
 export const TechniciansPage: React.FC = () => {
@@ -30,6 +30,12 @@ export const TechniciansPage: React.FC = () => {
   const { data: technicians = [], isLoading } = useQuery({
     queryKey: ['technicians'],
     queryFn: () => techniciansApi.getAll(),
+  });
+
+  const { data: performanceScorecard } = useQuery({
+    queryKey: ['technician-performance', selectedTech?.id],
+    queryFn: () => performanceApi.getTechnicianPerformance(selectedTech!.id),
+    enabled: !!selectedTech?.id,
   });
 
   const updateStatusMutation = useMutation({
@@ -383,6 +389,82 @@ export const TechniciansPage: React.FC = () => {
                 </span>
               </div>
             </div>
+
+            {/* Phase 4 Operational Performance Scorecard */}
+            {performanceScorecard && (
+              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-indigo-500/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-mono text-indigo-400 font-bold uppercase block">
+                      Phase 4 Composite Scorecard
+                    </span>
+                    <h3 className="text-xs font-bold text-white">Operational Performance Index</h3>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                      performanceScorecard.performanceTier === 'ELITE'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                        : performanceScorecard.performanceTier === 'HIGH_PERFORMER'
+                        ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+                        : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                    }`}>
+                      {performanceScorecard.performanceTier}
+                    </span>
+                    <span className="text-base font-extrabold text-white font-mono">
+                      {performanceScorecard.performanceScore.toFixed(1)}/100
+                    </span>
+                  </div>
+                </div>
+
+                {/* Sub-Metric Bars */}
+                <div className="space-y-1.5 text-[11px] font-mono">
+                  <div className="flex justify-between items-center text-slate-400">
+                    <span>SLA Adherence (30% wt):</span>
+                    <span className="text-emerald-400 font-bold">{performanceScorecard.slaAdherencePercent}%</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-400">
+                    <span>First-Time Fix Rate (20% wt):</span>
+                    <span className="text-blue-400 font-bold">{performanceScorecard.firstTimeFixPercent}%</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-400">
+                    <span>Route Efficiency (15% wt):</span>
+                    <span className="text-indigo-400 font-bold">{performanceScorecard.routeEfficiencyScore}/100</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-400">
+                    <span>Avg Service Turnaround:</span>
+                    <span className="text-slate-200 font-bold">{performanceScorecard.avgCompletionMinutes} min</span>
+                  </div>
+                </div>
+
+                {/* Strengths & Improvement Tag Pills */}
+                <div className="space-y-1.5 pt-2 border-t border-slate-800 text-[10px]">
+                  {performanceScorecard.operationalStrengths && performanceScorecard.operationalStrengths.length > 0 && (
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <span className="text-emerald-400 font-bold">Strengths:</span>
+                      {performanceScorecard.operationalStrengths.map((s: string, idx: number) => (
+                        <span key={idx} className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {performanceScorecard.improvementAreas && performanceScorecard.improvementAreas.length > 0 && (
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <span className="text-amber-400 font-bold">Focus:</span>
+                      {performanceScorecard.improvementAreas.map((a: string, idx: number) => (
+                        <span key={idx} className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                          {a}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-[10px] text-slate-400 italic">
+                  {performanceScorecard.plainEnglishSummary}
+                </p>
+              </div>
+            )}
 
             {/* Skills */}
             <div>

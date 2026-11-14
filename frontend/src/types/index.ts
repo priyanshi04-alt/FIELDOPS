@@ -257,12 +257,328 @@ export interface OperationalAnomaly {
   detectedAt: string;
 }
 
+export interface RouteStop {
+  workOrderId: number;
+  workOrderNumber: string;
+  title: string;
+  priority: string;
+  status: string;
+  customerName: string;
+  locationName: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  slaDeadline: string;
+  slaRemainingMinutes: number;
+  serviceDurationMinutes: number;
+  sequenceNumber: number;
+  estimatedArrival: string;
+  estimatedDeparture: string;
+  travelTimeFromPreviousMinutes: number;
+  distanceFromPreviousKm: number;
+  slaStatus: 'ON_TRACK' | 'AT_RISK' | 'VIOLATION';
+}
+
+export interface RouteLeg {
+  legNumber: number;
+  fromName: string;
+  toName: string;
+  fromLat: number;
+  fromLon: number;
+  toLat: number;
+  toLon: number;
+  distanceKm: number;
+  travelTimeMinutes: number;
+}
+
+export interface OptimizedRoute {
+  technicianId: number;
+  technicianName: string;
+  technicianStatus: string;
+  originAddress: string;
+  originLat: number;
+  originLon: number;
+  stops: RouteStop[];
+  legs: RouteLeg[];
+  totalStops: number;
+  totalDistanceKm: number;
+  totalTravelTimeMinutes: number;
+  totalServiceTimeMinutes: number;
+  totalDurationMinutes: number;
+  startTime: string;
+  projectedCompletionTime: string;
+  slaCompliantCount: number;
+  slaAtRiskCount: number;
+  slaViolationCount: number;
+  optimizationScore: number;
+  baselineDistanceKm: number;
+  baselineTravelTimeMinutes: number;
+  distanceSavedKm: number;
+  timeSavedMinutes: number;
+  explanation: string;
+  isApplied: boolean;
+  createdAt: string;
+}
+
+export interface RouteDecisionAudit {
+  id: number;
+  technicianId: number;
+  technicianName: string;
+  dispatcherEmail: string;
+  jobCount: number;
+  previousOrder: string;
+  optimizedOrder: string;
+  algorithm: string;
+  optimizationScore: number;
+  totalDistanceKm: number;
+  totalTravelTimeMinutes: number;
+  distanceSavedKm: number;
+  timeSavedMinutes: number;
+  slaAtRiskCount: number;
+  slaViolationCount: number;
+  action: string;
+  explanation: string;
+  timestamp: string;
+}
+
+export type AlertSeverity = 'INFO' | 'WARNING' | 'HIGH' | 'CRITICAL';
+export type AlertType =
+  | 'SLA_CRITICAL'
+  | 'SLA_AT_RISK'
+  | 'TECHNICIAN_OVERLOAD'
+  | 'UNASSIGNED_CRITICAL_JOB'
+  | 'ROUTE_DELAY'
+  | 'INVENTORY_SHORTAGE'
+  | 'TERRITORY_SPIKE'
+  | 'TECHNICIAN_OFFLINE'
+  | 'PREDICTED_SLA_BREACH'
+  | 'PREDICTED_STOCKOUT'
+  | 'PERFORMANCE_DEGRADATION'
+  | 'PREDICTED_ROUTE_DELAY';
+export type AlertStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED';
+
+export interface OperationalAlert {
+  id: number;
+  alertType: AlertType;
+  severity: AlertSeverity;
+  status: AlertStatus;
+  title: string;
+  message: string;
+  explanation?: string;
+  fingerprint?: string;
+  isPredictive?: boolean;
+  relatedEntityType?: string;
+  relatedEntityId?: number;
+  workOrderId?: number;
+  workOrderNumber?: string;
+  technicianId?: number;
+  technicianName?: string;
+  acknowledgedBy?: string;
+  acknowledgedAt?: string;
+  resolvedBy?: string;
+  resolvedAt?: string;
+  resolutionNotes?: string;
+  createdAt: string;
+}
+
+export type OperationsEventType =
+  | 'WORK_ORDER_ASSIGNED'
+  | 'WORK_ORDER_STATUS_CHANGED'
+  | 'TECHNICIAN_STATUS_CHANGED'
+  | 'TECHNICIAN_LOCATION_UPDATED'
+  | 'SLA_RISK_CHANGED'
+  | 'NEW_ALERT'
+  | 'ALERT_ACKNOWLEDGED'
+  | 'ALERT_RESOLVED'
+  | 'ROUTE_OPTIMIZED'
+  | 'ROUTE_APPLIED'
+  | 'INVENTORY_ALERT'
+  | 'ANOMALY_DETECTED'
+  | 'PREDICTIVE_ALERT_CREATED'
+  | 'PREDICTIVE_RISK_CHANGED'
+  | 'STOCKOUT_PREDICTED'
+  | 'SLA_BREACH_PREDICTED'
+  | 'SCENARIO_APPLIED';
+
+export interface OperationsEvent {
+  eventType: OperationsEventType;
+  severity: string;
+  message: string;
+  workOrderId?: number;
+  technicianId?: number;
+  alertId?: number;
+  timestamp: string;
+  payload?: Record<string, any>;
+}
+
+export interface ModelRegistryEntry {
+  id: number;
+  modelKey: string;
+  modelName: string;
+  modelVersion: string;
+  algorithm: string;
+  evaluationDataset?: string;
+  primaryMetricValue?: number;
+  primaryMetricName?: string;
+  secondaryMetricValue?: number;
+  secondaryMetricName?: string;
+  syntheticDisclaimer?: string;
+  trainedAt?: string;
+  loadedAt?: string;
+}
+
+export interface InventoryForecastDTO {
+  inventoryItemId: number;
+  partName: string;
+  category: string;
+  currentStock: number;
+  safetyStock: number;
+  supplierLeadDays: number;
+  predicted7DayDemand: number;
+  dailyDemandRate: number;
+  estimatedDaysUntilStockout: number;
+  recommendation: 'REORDER' | 'MONITOR' | 'OPTIMAL';
+  recommendedReorderQuantity: number;
+  confidenceScore: number;
+  explanation: string;
+  modelVersion: string;
+  algorithm: string;
+  syntheticDisclaimer?: string;
+  generatedAt: string;
+}
+
+export interface PredictiveSlaResultDTO {
+  workOrderId: number;
+  workOrderNumber: string;
+  title: string;
+  priority: string;
+  deterministicRiskScore: number;
+  deterministicRiskLevel: string;
+  mlBreachProbability: number;
+  mlRiskAssessment: 'ON_TRACK' | 'AT_RISK' | 'LIKELY_BREACH';
+  confidenceScore: number;
+  fusedRiskScore: number;
+  finalAssessment: 'ON_TRACK' | 'AT_RISK' | 'LIKELY_BREACH';
+  remainingSlaMinutes: number;
+  estimatedArrivalMinutes?: number;
+  estimatedServiceDurationMinutes?: number;
+  technicianDistanceKm?: number;
+  technicianName?: string;
+  technicianBacklog?: number;
+  topContributingFactors: string[];
+  recommendedAction: string;
+  explanation: string;
+  modelVersion: string;
+  algorithm: string;
+  syntheticDisclaimer?: string;
+  generatedAt: string;
+}
+
+export interface TechnicianPerformanceDTO {
+  technicianId: number;
+  name: string;
+  email: string;
+  city: string;
+  status: string;
+  userRating: number;
+  performanceScore: number;
+  performanceTier: 'ELITE' | 'HIGH_PERFORMER' | 'STANDARD' | 'REQUIRES_SUPPORT';
+  performanceTrend: 'IMPROVING' | 'STABLE' | 'DECLINING';
+  slaAdherencePercent: number;
+  firstTimeFixPercent: number;
+  avgCompletionMinutes: number;
+  routeEfficiencyScore: number;
+  workloadBalanceScore: number;
+  reliabilityScore: number;
+  completedJobsCount: number;
+  activeJobsCount: number;
+  currentUtilizationRate: number;
+  operationalStrengths: string[];
+  improvementAreas: string[];
+  plainEnglishSummary: string;
+  evaluatedAt: string;
+}
+
+export type ScenarioType =
+  | 'TECHNICIAN_UNAVAILABLE'
+  | 'TECHNICIAN_DELAYED'
+  | 'URGENT_JOB_INJECTED'
+  | 'INVENTORY_STOCKOUT_INJECTED'
+  | 'TECHNICIAN_REASSIGNED'
+  | 'BULK_RESEQUENCE';
+
+export interface ScenarioInput {
+  scenarioType: ScenarioType;
+  scenarioName?: string;
+  targetTechnicianId?: number;
+  targetWorkOrderId?: number;
+  targetInventoryItemId?: number;
+  delayMinutes?: number;
+  fallbackTechnicianId?: number;
+  parameters?: Record<string, any>;
+}
+
+export interface ScenarioResult {
+  simulationId: string;
+  scenarioType: ScenarioType;
+  scenarioName: string;
+  baselineActiveTechnicians: number;
+  baselineAtRiskJobs: number;
+  baselineProjectedBreaches: number;
+  baselineTotalDistanceKm: number;
+  baselineTotalTravelMinutes: number;
+  baselineActiveAlerts: number;
+  simulatedActiveTechnicians: number;
+  simulatedAtRiskJobs: number;
+  simulatedProjectedBreaches: number;
+  simulatedTotalDistanceKm: number;
+  simulatedTotalTravelMinutes: number;
+  simulatedActiveAlerts: number;
+  deltaAtRiskJobs: number;
+  deltaProjectedBreaches: number;
+  deltaDistanceKm: number;
+  deltaTravelMinutes: number;
+  deltaNewAlerts: number;
+  reassignedJobsCount: number;
+  operationalRiskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  recommendedAction: string;
+  simulatedStateChanges: string[];
+  projectedWarnings: string[];
+  isApplied: boolean;
+  generatedAt: string;
+}
+
+export interface ScenarioDecisionAudit {
+  id: number;
+  simulationId: string;
+  scenarioType: ScenarioType;
+  scenarioName: string;
+  dispatcherEmail: string;
+  reassignedJobsCount: number;
+  deltaDistanceKm: number;
+  deltaTravelMinutes: number;
+  deltaProjectedBreaches: number;
+  stateChangesSummary: string;
+  rationale: string;
+  appliedAt: string;
+}
+
 export interface OperationsIntelligenceOverview {
+  operationsHealthScore?: number;
   activeAnomaliesCount: number;
   criticalSlaCount: number;
+  activeAlertsCount?: number;
+  predictedBreachesCount?: number;
+  predictedStockoutsCount?: number;
+  modelRegistry?: Record<string, ModelRegistryEntry>;
+  topStockoutRisks?: InventoryForecastDTO[];
+  topPredictedBreaches?: PredictiveSlaResultDTO[];
   highSlaRisks: SlaRiskResult[];
   anomalies: OperationalAnomaly[];
   pendingSmartDispatches: AssignmentRecommendation[];
+  activeAlerts?: OperationalAlert[];
+  sampleOptimizedRoute?: OptimizedRoute;
+  recentRouteAudits?: RouteDecisionAudit[];
   generatedAt: string;
 }
 
@@ -280,4 +596,5 @@ export interface DecisionAuditLog {
   dispatcherEmail?: string;
   timestamp: string;
 }
+
 
