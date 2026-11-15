@@ -19,3 +19,8 @@ frontend/.cache/
 *.iml
 .DS_Store
 Thumbs.db
+
+# Test outputs & reports
+frontend/test-results/
+frontend/e2e-report.json
+playwright-report/
