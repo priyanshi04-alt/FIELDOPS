@@ -24,7 +24,7 @@ public class TechnicianPerformanceController {
         if (authentication != null && authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_TECHNICIAN"))) {
             String callerEmail = authentication.getName();
-            if (!callerEmail.equalsIgnoreCase(dto.getEmail())) {
+            if (!com.fieldops.common.IdentityMatcher.matchesTechnician(callerEmail, dto.getEmail())) {
                 throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only view your own performance scorecard.");
             }
         }

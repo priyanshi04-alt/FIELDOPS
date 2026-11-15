@@ -14,7 +14,6 @@ public class WorkOrderCreateRequest {
     @NotNull(message = "Priority is required")
     private WorkOrderPriority priority;
 
-    @NotNull(message = "Customer ID is required")
     private Long customerId;
 
     private Long technicianId;

@@ -81,6 +81,9 @@ public class WorkOrderService {
 
     @Transactional
     public WorkOrderDTO createWorkOrder(WorkOrderCreateRequest request) {
+        if (request.getCustomerId() == null) {
+            throw new IllegalArgumentException("Customer ID is required");
+        }
         Customer customer = customerRepository.findById(request.getCustomerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Customer not found with id: " + request.getCustomerId()));
 

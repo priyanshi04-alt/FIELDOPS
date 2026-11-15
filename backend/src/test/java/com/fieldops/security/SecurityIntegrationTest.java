@@ -6,6 +6,7 @@ import com.fieldops.customer.CustomerRepository;
 import com.fieldops.technician.Technician;
 import com.fieldops.technician.TechnicianRepository;
 import com.fieldops.workorder.WorkOrder;
+import com.fieldops.workorder.WorkOrderCreateRequest;
 import com.fieldops.workorder.WorkOrderPriority;
 import com.fieldops.workorder.WorkOrderRepository;
 import com.fieldops.workorder.WorkOrderStatus;
@@ -323,5 +324,75 @@ public class SecurityIntegrationTest {
         mockMvc.perform(get("/api/nonexistent/unmapped/path"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("Gap 1 (P1): Customer can create work order for self without technician self-assignment")
+    @WithMockUser(username = "customer@fieldops.demo", roles = {"CUSTOMER"})
+    void customer_CanCreateWorkOrder_ForSelf_ShouldSucceed() throws Exception {
+        Customer vertex = customerRepository.findAll().stream()
+                .filter(c -> "dispatch@vertexlogistics.in".equalsIgnoreCase(c.getEmail()))
+                .findFirst().orElseThrow();
+
+        WorkOrderCreateRequest req = new WorkOrderCreateRequest();
+        req.setTitle("Customer Self-Service Emergency Cooling Repair");
+        req.setDescription("Compressor unit 3 at cold storage bay 4 is tripping safety breakers.");
+        req.setPriority(WorkOrderPriority.HIGH);
+        req.setCustomerId(vertex.getId());
+        req.setTechnicianId(999L); // Malicious/invalid self-assignment attempt
+
+        mockMvc.perform(post("/api/work-orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.title").value("Customer Self-Service Emergency Cooling Repair"))
+                .andExpect(jsonPath("$.data.status").value("NEW"))
+                .andExpect(jsonPath("$.data.technician").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("Gap 1 (P1): Customer creating work order for another customer is rejected with 403")
+    @WithMockUser(username = "customer@fieldops.demo", roles = {"CUSTOMER"})
+    void customer_CreateWorkOrder_ForOtherCustomer_ShouldBeForbidden() throws Exception {
+        Customer otherCustomer = customerRepository.findAll().stream()
+                .filter(c -> !"dispatch@vertexlogistics.in".equalsIgnoreCase(c.getEmail()))
+                .findFirst().orElseThrow();
+
+        WorkOrderCreateRequest badReq = new WorkOrderCreateRequest();
+        badReq.setTitle("Unauthorized Cross-Customer Job Creation");
+        badReq.setPriority(WorkOrderPriority.MEDIUM);
+        badReq.setCustomerId(otherCustomer.getId());
+
+        mockMvc.perform(post("/api/work-orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(badReq)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Gap 2 (P2): Technician performance scorecard succeeds with demo alias technician@fieldops.demo")
+    @WithMockUser(username = "technician@fieldops.demo", roles = {"TECHNICIAN"})
+    void technician_PerformanceScorecard_WithDemoEmail_ShouldSucceed() throws Exception {
+        Technician rahul = technicianRepository.findAll().stream()
+                .filter(t -> "rahul.s@fieldops.demo".equalsIgnoreCase(t.getEmail()))
+                .findFirst().orElseThrow();
+
+        mockMvc.perform(get("/api/technicians/" + rahul.getId() + "/performance"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.technicianId").value(rahul.getId()))
+                .andExpect(jsonPath("$.email").value("rahul.s@fieldops.demo"));
+    }
+
+    @Test
+    @DisplayName("Gap 2 (P2): Technician accessing another technician's performance scorecard returns 403")
+    @WithMockUser(username = "technician@fieldops.demo", roles = {"TECHNICIAN"})
+    void technician_PerformanceScorecard_OtherTechnician_ShouldBeForbidden() throws Exception {
+        Technician otherTech = technicianRepository.findAll().stream()
+                .filter(t -> !"rahul.s@fieldops.demo".equalsIgnoreCase(t.getEmail()))
+                .findFirst().orElseThrow();
+
+        mockMvc.perform(get("/api/technicians/" + otherTech.getId() + "/performance"))
+                .andExpect(status().isForbidden());
     }
 }

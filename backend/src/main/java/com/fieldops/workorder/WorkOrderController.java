@@ -16,9 +16,12 @@ import java.util.List;
 public class WorkOrderController {
 
     private final WorkOrderService workOrderService;
+    private final com.fieldops.customer.CustomerRepository customerRepository;
 
-    public WorkOrderController(WorkOrderService workOrderService) {
+    public WorkOrderController(WorkOrderService workOrderService,
+                               com.fieldops.customer.CustomerRepository customerRepository) {
         this.workOrderService = workOrderService;
+        this.customerRepository = customerRepository;
     }
 
     @GetMapping
@@ -126,8 +129,35 @@ public class WorkOrderController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'DISPATCHER')")
-    public ResponseEntity<ApiResponse<WorkOrderDTO>> createWorkOrder(@Valid @RequestBody WorkOrderCreateRequest request) {
+    @PreAuthorize("hasAnyRole('ADMIN', 'DISPATCHER', 'CUSTOMER')")
+    public ResponseEntity<ApiResponse<WorkOrderDTO>> createWorkOrder(
+            @Valid @RequestBody WorkOrderCreateRequest request,
+            Authentication authentication
+    ) {
+        boolean isCustomer = authentication != null && authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(a -> a.equals("ROLE_CUSTOMER"));
+
+        if (isCustomer) {
+            String callerEmail = authentication.getName();
+            List<com.fieldops.customer.Customer> customers = customerRepository.findAll();
+            com.fieldops.customer.Customer callerCustomer = customers.stream()
+                    .filter(c -> com.fieldops.common.IdentityMatcher.matchesCustomer(callerEmail, c.getEmail()))
+                    .findFirst()
+                    .orElseThrow(() -> new AccessDeniedException("Access denied: No customer profile found matching authenticated user."));
+
+            // If customerId was supplied, reject cross-customer IDOR attempts
+            if (request.getCustomerId() != null && !request.getCustomerId().equals(callerCustomer.getId())) {
+                throw new AccessDeniedException("Access denied: You cannot create work orders for other customers.");
+            }
+
+            // Always derive customer ID from authenticated identity
+            request.setCustomerId(callerCustomer.getId());
+
+            // Prevent customers from self-assigning technicians
+            request.setTechnicianId(null);
+        }
+
         WorkOrderDTO dto = workOrderService.createWorkOrder(request);
         return ResponseEntity.ok(ApiResponse.ok("Work order created successfully", dto));
     }
