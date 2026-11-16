@@ -5,6 +5,8 @@ server:
 spring:
   application:
     name: fieldops-backend
+  profiles:
+    default: dev
   lifecycle:
     timeout-per-shutdown-phase: 20s
 
@@ -29,7 +31,7 @@ spring:
 
 app:
   jwt:
-    secret: ${APP_JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+    secret: ${APP_JWT_SECRET:}
     expiration-ms: ${APP_JWT_EXPIRATION_MS:86400000}
 
 management:
