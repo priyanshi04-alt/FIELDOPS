@@ -1,12 +1,17 @@
 spring:
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
   datasource:
-    url: ${POSTGRES_JDBC_URL:jdbc:postgresql://localhost:5432/fieldops_db}
+    url: ${POSTGRES_JDBC_URL:jdbc:postgresql://localhost:5432/fieldops_perf_test_db}
     username: ${POSTGRES_USER:fieldops_user}
     password: ${POSTGRES_PASSWORD:fieldops_password}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: validate
     show-sql: false
     open-in-view: false
     properties:

@@ -9,6 +9,11 @@ spring:
     default: dev
   lifecycle:
     timeout-per-shutdown-phase: 20s
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
 
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/fieldops_db}
