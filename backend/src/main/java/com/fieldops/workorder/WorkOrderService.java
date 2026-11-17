@@ -5,6 +5,17 @@ import com.fieldops.customer.Customer;
 import com.fieldops.customer.CustomerRepository;
 import com.fieldops.technician.Technician;
 import com.fieldops.technician.TechnicianRepository;
+import com.fieldops.websocket.OperationsEvent;
+import com.fieldops.websocket.OperationsEventPublisher;
+import com.fieldops.websocket.OperationsEventType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,26 +23,52 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.fieldops.websocket.OperationsEvent;
-import com.fieldops.websocket.OperationsEventPublisher;
-import com.fieldops.websocket.OperationsEventType;
-
 @Service
 public class WorkOrderService {
+
+    private static final Logger log = LoggerFactory.getLogger(WorkOrderService.class);
 
     private final WorkOrderRepository workOrderRepository;
     private final CustomerRepository customerRepository;
     private final TechnicianRepository technicianRepository;
     private final OperationsEventPublisher eventPublisher;
+    private final WorkOrderNumberGenerator workOrderNumberGenerator;
 
     public WorkOrderService(WorkOrderRepository workOrderRepository,
                             CustomerRepository customerRepository,
                             TechnicianRepository technicianRepository,
                             OperationsEventPublisher eventPublisher) {
+        this(workOrderRepository, customerRepository, technicianRepository, eventPublisher, null);
+    }
+
+    @Autowired
+    public WorkOrderService(WorkOrderRepository workOrderRepository,
+                            CustomerRepository customerRepository,
+                            TechnicianRepository technicianRepository,
+                            OperationsEventPublisher eventPublisher,
+                            WorkOrderNumberGenerator workOrderNumberGenerator) {
         this.workOrderRepository = workOrderRepository;
         this.customerRepository = customerRepository;
         this.technicianRepository = technicianRepository;
         this.eventPublisher = eventPublisher;
+        this.workOrderNumberGenerator = workOrderNumberGenerator;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<WorkOrderDTO> getWorkOrdersPaged(
+            WorkOrderStatus status,
+            WorkOrderPriority priority,
+            Long technicianId,
+            Long customerId,
+            String search,
+            String customerEmail,
+            String technicianEmail,
+            Pageable pageable
+    ) {
+        Specification<WorkOrder> spec = WorkOrderSpecification.filterBy(
+                status, priority, technicianId, customerId, search, customerEmail, technicianEmail
+        );
+        return workOrderRepository.findAll(spec, pageable).map(WorkOrderDTO::fromEntity);
     }
 
     @Transactional(readOnly = true)
@@ -42,18 +79,11 @@ public class WorkOrderService {
             Long customerId,
             String search
     ) {
-        List<WorkOrder> list = workOrderRepository.findAll();
-
-        return list.stream()
-                .filter(wo -> status == null || wo.getStatus() == status)
-                .filter(wo -> priority == null || wo.getPriority() == priority)
-                .filter(wo -> technicianId == null || (wo.getTechnician() != null && wo.getTechnician().getId().equals(technicianId)))
-                .filter(wo -> customerId == null || (wo.getCustomer() != null && wo.getCustomer().getId().equals(customerId)))
-                .filter(wo -> search == null || search.isBlank() ||
-                        wo.getWorkOrderNumber().toLowerCase().contains(search.toLowerCase()) ||
-                        wo.getTitle().toLowerCase().contains(search.toLowerCase()) ||
-                        (wo.getCustomer() != null && wo.getCustomer().getName().toLowerCase().contains(search.toLowerCase())))
-                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+        Specification<WorkOrder> spec = WorkOrderSpecification.filterBy(
+                status, priority, technicianId, customerId, search, null, null
+        );
+        return workOrderRepository.findAll(spec, Sort.by(Sort.Direction.DESC, "createdAt"))
+                .stream()
                 .map(WorkOrderDTO::fromEntity)
                 .collect(Collectors.toList());
     }
@@ -92,36 +122,52 @@ public class WorkOrderService {
             technician = technicianRepository.findById(request.getTechnicianId()).orElse(null);
         }
 
-        String woNum = "WO-" + (1000 + (int)(Math.random() * 9000));
+        // Bounded retry loop for resilience against any rare transient constraint conflict
+        int maxAttempts = 3;
+        WorkOrder saved = null;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            String woNum = workOrderNumberGenerator != null
+                    ? workOrderNumberGenerator.generateNextNumber()
+                    : "WO-" + (10000 + (int) (Math.random() * 90000));
 
-        WorkOrder wo = WorkOrder.builder()
-                .workOrderNumber(woNum)
-                .title(request.getTitle())
-                .description(request.getDescription())
-                .priority(request.getPriority())
-                .status(technician != null ? WorkOrderStatus.ASSIGNED : WorkOrderStatus.NEW)
-                .customer(customer)
-                .technician(technician)
-                .locationName(request.getLocationName() != null ? request.getLocationName() : customer.getCompany())
-                .city(request.getCity() != null ? request.getCity() : customer.getCity())
-                .address(request.getAddress() != null ? request.getAddress() : customer.getAddress())
-                .latitude(request.getLatitude() != null ? request.getLatitude() : customer.getLatitude())
-                .longitude(request.getLongitude() != null ? request.getLongitude() : customer.getLongitude())
-                .requiredSkills(request.getRequiredSkills())
-                .scheduledStartTime(request.getScheduledStartTime())
-                .scheduledEndTime(request.getScheduledEndTime())
-                .slaDeadline(request.getSlaDeadline() != null ? request.getSlaDeadline() : LocalDateTime.now().plusHours(4))
-                .estimatedDurationHours(request.getEstimatedDurationHours() != null ? request.getEstimatedDurationHours() : 2.0)
-                .slaBreachProbability(Math.round(Math.random() * 30 * 10.0) / 10.0)
-                .technicianEtaMinutes(technician != null ? 25 : null)
-                .distanceKm(technician != null ? 6.5 : null)
-                .aiInsight("Deterministic risk evaluation: SLA within nominal limits.")
-                .build();
+            WorkOrder wo = WorkOrder.builder()
+                    .workOrderNumber(woNum)
+                    .title(request.getTitle())
+                    .description(request.getDescription())
+                    .priority(request.getPriority())
+                    .status(technician != null ? WorkOrderStatus.ASSIGNED : WorkOrderStatus.NEW)
+                    .customer(customer)
+                    .technician(technician)
+                    .locationName(request.getLocationName() != null ? request.getLocationName() : customer.getCompany())
+                    .city(request.getCity() != null ? request.getCity() : customer.getCity())
+                    .address(request.getAddress() != null ? request.getAddress() : customer.getAddress())
+                    .latitude(request.getLatitude() != null ? request.getLatitude() : customer.getLatitude())
+                    .longitude(request.getLongitude() != null ? request.getLongitude() : customer.getLongitude())
+                    .requiredSkills(request.getRequiredSkills())
+                    .scheduledStartTime(request.getScheduledStartTime())
+                    .scheduledEndTime(request.getScheduledEndTime())
+                    .slaDeadline(request.getSlaDeadline() != null ? request.getSlaDeadline() : LocalDateTime.now().plusHours(4))
+                    .estimatedDurationHours(request.getEstimatedDurationHours() != null ? request.getEstimatedDurationHours() : 2.0)
+                    .slaBreachProbability(Math.round(Math.random() * 30 * 10.0) / 10.0)
+                    .technicianEtaMinutes(technician != null ? 25 : null)
+                    .distanceKm(technician != null ? 6.5 : null)
+                    .aiInsight("Deterministic risk evaluation: SLA within nominal limits.")
+                    .build();
 
-        customer.setOpenJobsCount(customer.getOpenJobsCount() + 1);
-        customerRepository.save(customer);
+            try {
+                saved = workOrderRepository.save(wo);
+                break;
+            } catch (DataIntegrityViolationException dive) {
+                if (attempt == maxAttempts) {
+                    log.error("Exhausted retries creating work order due to collision: {}", dive.getMessage());
+                    throw dive;
+                }
+                log.warn("Collision detected for work order number on attempt {}, retrying...", attempt);
+            }
+        }
 
-        WorkOrder saved = workOrderRepository.save(wo);
+        // Atomic database counter increment (avoids lost updates and row contention)
+        customerRepository.incrementOpenJobsCount(customer.getId());
 
         eventPublisher.publish(OperationsEvent.builder()
                 .eventType(saved.getTechnician() != null ? OperationsEventType.WORK_ORDER_ASSIGNED : OperationsEventType.WORK_ORDER_STATUS_CHANGED)
@@ -146,16 +192,16 @@ public class WorkOrderService {
         if (request.getDescription() != null) wo.setDescription(request.getDescription());
         if (request.getPriority() != null) wo.setPriority(request.getPriority());
 
-        if (request.getStatus() != null) {
+        if (request.getStatus() != null && request.getStatus() != prevStatus) {
             wo.setStatus(request.getStatus());
             if (request.getStatus() == WorkOrderStatus.COMPLETED && wo.getCompletedAt() == null) {
                 wo.setCompletedAt(LocalDateTime.now());
                 if (wo.getCustomer() != null) {
-                    wo.getCustomer().setCompletedJobsCount(wo.getCustomer().getCompletedJobsCount() + 1);
-                    if (wo.getCustomer().getOpenJobsCount() > 0) {
-                        wo.getCustomer().setOpenJobsCount(wo.getCustomer().getOpenJobsCount() - 1);
-                    }
-                    customerRepository.save(wo.getCustomer());
+                    customerRepository.transitionJobCompleted(wo.getCustomer().getId());
+                }
+            } else if (request.getStatus() == WorkOrderStatus.CANCELLED && prevStatus != WorkOrderStatus.COMPLETED) {
+                if (wo.getCustomer() != null) {
+                    customerRepository.decrementOpenJobsCount(wo.getCustomer().getId());
                 }
             }
         }
@@ -176,7 +222,6 @@ public class WorkOrderService {
 
         WorkOrder updated = workOrderRepository.save(wo);
 
-        // Determine event type
         OperationsEventType eventType = OperationsEventType.WORK_ORDER_STATUS_CHANGED;
         String message = String.format("Work order %s status changed to %s", updated.getWorkOrderNumber(), updated.getStatus());
 
@@ -204,33 +249,33 @@ public class WorkOrderService {
         WorkOrder wo = workOrderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Work order not found with id: " + id));
 
+        WorkOrderStatus prevStatus = wo.getStatus();
+
         if (isTechnician) {
             if (wo.getTechnician() == null || !com.fieldops.common.IdentityMatcher.matchesTechnician(callerEmail, wo.getTechnician().getEmail())) {
                 throw new org.springframework.security.access.AccessDeniedException("Access denied: You are not assigned to this work order.");
             }
 
             if (request.getStatus() != null && request.getStatus() != wo.getStatus()) {
-                // Technicians cannot transition ticket to NEW
                 if (request.getStatus() == WorkOrderStatus.NEW) {
                     throw new IllegalArgumentException("Technicians cannot revert work order status to NEW.");
                 }
-                // Completed work orders cannot be re-opened by technicians
                 if (wo.getStatus() == WorkOrderStatus.COMPLETED) {
                     throw new IllegalArgumentException("Completed work order cannot have its status changed.");
                 }
             }
         }
 
-        if (request.getStatus() != null) {
+        if (request.getStatus() != null && request.getStatus() != prevStatus) {
             wo.setStatus(request.getStatus());
             if (request.getStatus() == WorkOrderStatus.COMPLETED && wo.getCompletedAt() == null) {
                 wo.setCompletedAt(request.getCompletedAt() != null ? request.getCompletedAt() : LocalDateTime.now());
                 if (wo.getCustomer() != null) {
-                    wo.getCustomer().setCompletedJobsCount(wo.getCustomer().getCompletedJobsCount() + 1);
-                    if (wo.getCustomer().getOpenJobsCount() > 0) {
-                        wo.getCustomer().setOpenJobsCount(wo.getCustomer().getOpenJobsCount() - 1);
-                    }
-                    customerRepository.save(wo.getCustomer());
+                    customerRepository.transitionJobCompleted(wo.getCustomer().getId());
+                }
+            } else if (request.getStatus() == WorkOrderStatus.CANCELLED && prevStatus != WorkOrderStatus.COMPLETED) {
+                if (wo.getCustomer() != null) {
+                    customerRepository.decrementOpenJobsCount(wo.getCustomer().getId());
                 }
             }
         }
@@ -256,6 +301,11 @@ public class WorkOrderService {
     public void deleteWorkOrder(Long id) {
         WorkOrder wo = workOrderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Work order not found with id: " + id));
+        if (wo.getStatus() != WorkOrderStatus.COMPLETED && wo.getStatus() != WorkOrderStatus.CANCELLED) {
+            if (wo.getCustomer() != null) {
+                customerRepository.decrementOpenJobsCount(wo.getCustomer().getId());
+            }
+        }
         workOrderRepository.delete(wo);
     }
 }

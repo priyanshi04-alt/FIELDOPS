@@ -52,6 +52,7 @@ public class WorkOrder {
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "work_order_skills", joinColumns = @JoinColumn(name = "work_order_id"))
     @Column(name = "skill")
+    @org.hibernate.annotations.BatchSize(size = 50)
     private Set<String> requiredSkills = new HashSet<>();
 
     private LocalDateTime scheduledStartTime;

@@ -1,6 +1,7 @@
 package com.fieldops.workorder;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -8,7 +9,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
+public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long>, JpaSpecificationExecutor<WorkOrder> {
     Optional<WorkOrder> findByWorkOrderNumber(String workOrderNumber);
     List<WorkOrder> findByStatus(WorkOrderStatus status);
     List<WorkOrder> findByPriority(WorkOrderPriority priority);

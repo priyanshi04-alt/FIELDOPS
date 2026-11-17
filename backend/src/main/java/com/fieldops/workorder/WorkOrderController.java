@@ -2,6 +2,9 @@ package com.fieldops.workorder;
 
 import com.fieldops.common.ApiResponse;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -10,6 +13,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/work-orders")
@@ -24,6 +28,10 @@ public class WorkOrderController {
         this.customerRepository = customerRepository;
     }
 
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "createdAt", "id", "priority", "status", "slaBreachProbability", "workOrderNumber", "slaDeadline", "title"
+    );
+
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<WorkOrderDTO>>> getWorkOrders(
@@ -32,31 +40,55 @@ public class WorkOrderController {
             @RequestParam(required = false) Long technicianId,
             @RequestParam(required = false) Long customerId,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "50") int size,
+            @RequestParam(required = false, defaultValue = "createdAt") String sort,
+            @RequestParam(required = false, defaultValue = "desc") String direction,
             Authentication authentication
     ) {
-        List<WorkOrderDTO> list = workOrderService.getAllWorkOrders(status, priority, technicianId, customerId, search);
+        if (page < 0) {
+            throw new IllegalArgumentException("Page index must not be less than zero");
+        }
+        if (size < 1 || size > 100) {
+            throw new IllegalArgumentException("Page size must be between 1 and 100");
+        }
+        if (!ALLOWED_SORT_FIELDS.contains(sort)) {
+            throw new IllegalArgumentException("Invalid sort field: " + sort + ". Allowed: " + ALLOWED_SORT_FIELDS);
+        }
 
-        // IDOR Isolation for CUSTOMER role: Only return work orders belonging to caller's email
+        Sort.Direction sortDirection = "asc".equalsIgnoreCase(direction) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(sortDirection, sort));
+
+        String customerEmail = null;
         if (authentication != null && authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch(a -> a.equals("ROLE_CUSTOMER"))) {
-            String callerEmail = authentication.getName();
-            list = list.stream()
-                    .filter(wo -> wo.getCustomer() != null && com.fieldops.common.IdentityMatcher.matchesCustomer(callerEmail, wo.getCustomer().getEmail()))
-                    .toList();
+            customerEmail = authentication.getName();
         }
 
-        // IDOR Isolation for TECHNICIAN role: If technician views list, filter to their assigned jobs
+        String technicianEmail = null;
         if (authentication != null && authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch(a -> a.equals("ROLE_TECHNICIAN"))) {
-            String callerEmail = authentication.getName();
-            list = list.stream()
-                    .filter(wo -> wo.getTechnician() != null && com.fieldops.common.IdentityMatcher.matchesTechnician(callerEmail, wo.getTechnician().getEmail()))
-                    .toList();
+            technicianEmail = authentication.getName();
         }
 
-        return ResponseEntity.ok(ApiResponse.ok(list));
+        Page<WorkOrderDTO> pagedResult = workOrderService.getWorkOrdersPaged(
+                status, priority, technicianId, customerId, search, customerEmail, technicianEmail, pageRequest
+        );
+
+        ApiResponse<List<WorkOrderDTO>> response = ApiResponse.ok(pagedResult.getContent());
+        response.setPage(pagedResult.getNumber());
+        response.setSize(pagedResult.getSize());
+        response.setTotalElements(pagedResult.getTotalElements());
+        response.setTotalPages(pagedResult.getTotalPages());
+
+        return ResponseEntity.ok()
+                .header("X-Total-Count", String.valueOf(pagedResult.getTotalElements()))
+                .header("X-Page-Number", String.valueOf(pagedResult.getNumber()))
+                .header("X-Page-Size", String.valueOf(pagedResult.getSize()))
+                .header("X-Total-Pages", String.valueOf(pagedResult.getTotalPages()))
+                .body(response);
     }
 
     @GetMapping("/{id}")
