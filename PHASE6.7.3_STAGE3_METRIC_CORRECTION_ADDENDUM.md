@@ -80,7 +80,7 @@ p99 = quants[98]
 ```
 
 - **Algorithm:** Inclusive continuous distribution quantile estimation (equivalent to Excel's `PERCENTILE.INC` and NumPy's `method='weibull'`).
-- **Data Integrity:** All 100 individual request latencies for every endpoint are preserved in raw JSON arrays within `scratch/stage3_25vu_qualification_results.json`.
+- **Data Integrity & Maximum Latency Reconciliation:** Per-endpoint summary distributions (min, mean, p50, p90, p95, p99, max) are preserved in `scratch/stage3_25vu_qualification_results.json`. The verified suite-wide maximum latency across all 800 requests is **3,004.94 ms** (recorded during EP-04). Any external citation of `1,920.07 ms` is marked **unverified and rejected** as a transcription error of EP-04's p95 latency (`1,920.66 ms`).
 
 ---
 
@@ -92,4 +92,5 @@ p99 = quants[98]
 | **Sum of Measurement Times**| Implicitly derived | **10.701 seconds** | **Formally Documented** |
 | **Telemetry Elapsed Window** | `18.7 seconds` | **21.670 seconds** ($374$ samples @ $57.94\text{ ms}$ avg) | **Corrected** |
 | **Per-Endpoint RPS** | 28.27 to 314.68 RPS | 28.26 to 314.47 RPS | **Verified** |
+| **Overall Suite Maximum Latency** | `3,004.94 ms` | **3,004.94 ms** (EP-04 Max; 1,920.07 ms marked unverified) | **Verified** |
 | **Percentile Estimation** | Tabulated percentiles | Standardized `method='inclusive'` | **Formally Documented** |
