@@ -54,11 +54,21 @@ public class PredictiveInventoryService {
 
     @Transactional(readOnly = true)
     public List<InventoryForecastDTO> getReplenishmentRecommendations() {
-        List<InventoryForecastDTO> all = getAllForecasts();
+        return computeReplenishmentRecommendations(inventoryItemRepository.findAll());
+    }
+
+    /**
+     * Stage B in-memory inventory forecasting and replenishment evaluation.
+     * Computes consumption velocity and lead-time reorder requirements strictly in-memory.
+     */
+    public List<InventoryForecastDTO> computeReplenishmentRecommendations(List<InventoryItem> items) {
         List<InventoryForecastDTO> recs = new ArrayList<>();
-        for (InventoryForecastDTO f : all) {
-            if ("REORDER".equals(f.getRecommendation()) || "MONITOR".equals(f.getRecommendation())) {
-                recs.add(f);
+        if (items != null) {
+            for (InventoryItem item : items) {
+                InventoryForecastDTO f = forecastItem(item);
+                if ("REORDER".equals(f.getRecommendation()) || "MONITOR".equals(f.getRecommendation())) {
+                    recs.add(f);
+                }
             }
         }
         return recs;

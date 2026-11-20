@@ -45,9 +45,20 @@ public class TechnicianAssignmentService {
         WorkOrder wo = workOrderRepository.findById(workOrderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Work order not found with id: " + workOrderId));
 
-        List<Technician> allTechnicians = technicianRepository.findAll();
+        return computeRecommendation(wo, technicianRepository.findAll());
+    }
 
-        List<CandidateTechnicianScore> candidates = allTechnicians.stream()
+    /**
+     * Stage B in-memory candidate evaluation and ranking.
+     * Operates 100% in-memory without initiating database queries or holding transactions.
+     */
+    public AssignmentRecommendation computeRecommendation(WorkOrder wo, List<Technician> allTechnicians) {
+        if (wo == null) {
+            return null;
+        }
+
+        List<Technician> techList = allTechnicians != null ? allTechnicians : List.of();
+        List<CandidateTechnicianScore> candidates = techList.stream()
                 .map(tech -> scoringService.evaluateCandidate(wo, tech))
                 .sorted(Comparator.comparingInt(CandidateTechnicianScore::getTotalScore).reversed())
                 .collect(Collectors.toList());
@@ -57,7 +68,7 @@ public class TechnicianAssignmentService {
         return new AssignmentRecommendation(
                 wo.getId(),
                 wo.getWorkOrderNumber(),
-                wo.getPriority().name(),
+                wo.getPriority() != null ? wo.getPriority().name() : "MEDIUM",
                 top,
                 candidates
         );

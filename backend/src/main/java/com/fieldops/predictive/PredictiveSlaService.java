@@ -52,7 +52,17 @@ public class PredictiveSlaService {
 
     @Transactional(readOnly = true)
     public List<PredictiveSlaResultDTO> evaluateAllActive() {
-        List<WorkOrder> activeOrders = workOrderRepository.findAll().stream()
+        return computeAllActive(workOrderRepository.findAll());
+    }
+
+    /**
+     * Stage B in-memory machine learning predictive SLA breach classification.
+     * Computes feature scaling, Ridge/Logistic regression, and sigmoid breach probabilities
+     * strictly in-memory without database transactions.
+     */
+    public List<PredictiveSlaResultDTO> computeAllActive(List<WorkOrder> workOrders) {
+        if (workOrders == null) return new ArrayList<>();
+        List<WorkOrder> activeOrders = workOrders.stream()
                 .filter(wo -> wo.getStatus() != WorkOrderStatus.COMPLETED)
                 .toList();
         List<PredictiveSlaResultDTO> results = new ArrayList<>();

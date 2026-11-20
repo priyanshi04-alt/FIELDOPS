@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -33,11 +34,25 @@ public class OperationalAnomalyService {
 
     @Transactional(readOnly = true)
     public List<OperationalAnomaly> detectAnomalies() {
-        List<OperationalAnomaly> list = new ArrayList<>();
+        return computeAnomalies(
+                workOrderRepository.findAll(),
+                technicianRepository.findAll(),
+                inventoryItemRepository.findAll()
+        );
+    }
 
-        List<WorkOrder> allWorkOrders = workOrderRepository.findAll();
-        List<Technician> allTechnicians = technicianRepository.findAll();
-        List<InventoryItem> allInventory = inventoryItemRepository.findAll();
+    /**
+     * Stage B in-memory operational anomaly detection.
+     * Evaluates workload spikes, territory concentrations, unassigned critical tickets,
+     * and inventory stockouts strictly in-memory without holding a database transaction.
+     */
+    public List<OperationalAnomaly> computeAnomalies(List<WorkOrder> allWorkOrders,
+                                                    List<Technician> allTechnicians,
+                                                    List<InventoryItem> allInventory) {
+        List<OperationalAnomaly> list = new ArrayList<>();
+        if (allWorkOrders == null) allWorkOrders = Collections.emptyList();
+        if (allTechnicians == null) allTechnicians = Collections.emptyList();
+        if (allInventory == null) allInventory = Collections.emptyList();
 
         // 1. TECHNICIAN OVERLOAD ANOMALY
         // Baseline: 2.0 active jobs/technician. Trigger if technician >= 4 jobs (+100% overload).

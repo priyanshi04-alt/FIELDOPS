@@ -43,9 +43,18 @@ public class MultiStopRouteService {
         Technician tech = technicianRepository.findById(technicianId)
                 .orElseThrow(() -> new ResourceNotFoundException("Technician not found with id: " + technicianId));
 
-        List<WorkOrder> assignedJobs = findActiveJobsForTechnician(technicianId);
+        return computeOptimizedRoute(tech, workOrderRepository.findAll(), LocalDateTime.now());
+    }
 
-        return optimizationService.optimizeRoute(tech, assignedJobs, LocalDateTime.now());
+    /**
+     * Stage B in-memory route optimization.
+     * Computes multi-stop route optimization using 2-Opt and Nearest Neighbor algorithms
+     * strictly outside database transactions.
+     */
+    public OptimizedRoute computeOptimizedRoute(Technician tech, List<WorkOrder> allWorkOrders, LocalDateTime departureTime) {
+        if (tech == null) return null;
+        List<WorkOrder> assignedJobs = filterActiveJobsForTechnician(tech, allWorkOrders);
+        return optimizationService.optimizeRoute(tech, assignedJobs, departureTime != null ? departureTime : LocalDateTime.now());
     }
 
     @Transactional
@@ -201,9 +210,18 @@ public class MultiStopRouteService {
     private List<WorkOrder> findActiveJobsForTechnician(Long technicianId) {
         Technician tech = technicianRepository.findById(technicianId).orElse(null);
         if (tech == null) return Collections.emptyList();
+        return filterActiveJobsForTechnician(tech, workOrderRepository.findAll());
+    }
 
-        List<WorkOrder> directlyAssigned = workOrderRepository.findAll().stream()
-                .filter(wo -> wo.getTechnician() != null && wo.getTechnician().getId().equals(technicianId))
+    /**
+     * Stage B in-memory candidate job filtering for route optimization.
+     */
+    public List<WorkOrder> filterActiveJobsForTechnician(Technician tech, List<WorkOrder> allWorkOrders) {
+        if (tech == null || allWorkOrders == null) return Collections.emptyList();
+        Long technicianId = tech.getId();
+
+        List<WorkOrder> directlyAssigned = allWorkOrders.stream()
+                .filter(wo -> wo.getTechnician() != null && wo.getTechnician().getId() != null && wo.getTechnician().getId().equals(technicianId))
                 .filter(wo -> wo.getStatus() != WorkOrderStatus.COMPLETED)
                 .collect(Collectors.toList());
 
@@ -213,11 +231,11 @@ public class MultiStopRouteService {
 
         // If directly assigned jobs are sparse, include nearby open/unassigned jobs in the same city
         List<WorkOrder> result = new ArrayList<>(directlyAssigned);
-        List<WorkOrder> unassignedInCity = workOrderRepository.findAll().stream()
+        List<WorkOrder> unassignedInCity = allWorkOrders.stream()
                 .filter(wo -> wo.getTechnician() == null || wo.getStatus() == WorkOrderStatus.NEW)
-                .filter(wo -> wo.getCity() != null && wo.getCity().equalsIgnoreCase(tech.getCity()))
+                .filter(wo -> wo.getCity() != null && tech.getCity() != null && wo.getCity().equalsIgnoreCase(tech.getCity()))
                 .filter(wo -> !result.contains(wo))
-                .limit(4 - result.size())
+                .limit(Math.max(0, 4 - result.size()))
                 .collect(Collectors.toList());
 
         result.addAll(unassignedInCity);

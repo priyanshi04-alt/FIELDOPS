@@ -31,6 +31,7 @@ public class OperationsIntelligenceOverview {
     private OptimizedRoute sampleOptimizedRoute;
     private List<RouteDecisionAudit> recentRouteAudits = new ArrayList<>();
     private LocalDateTime generatedAt = LocalDateTime.now();
+    private OperationsPerformanceMetrics performanceMetrics;
 
     public OperationsIntelligenceOverview() {}
 
@@ -92,4 +93,7 @@ public class OperationsIntelligenceOverview {
 
     public LocalDateTime getGeneratedAt() { return generatedAt; }
     public void setGeneratedAt(LocalDateTime generatedAt) { this.generatedAt = generatedAt; }
+
+    public OperationsPerformanceMetrics getPerformanceMetrics() { return performanceMetrics; }
+    public void setPerformanceMetrics(OperationsPerformanceMetrics performanceMetrics) { this.performanceMetrics = performanceMetrics; }
 }
