@@ -18,6 +18,7 @@ import com.fieldops.workorder.WorkOrderRepository;
 import com.fieldops.workorder.WorkOrderStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -56,6 +57,7 @@ public class OperationsIntelligenceService {
     private final com.fieldops.predictive.ModelRegistryService modelRegistryService;
     private final OperationsSnapshotService snapshotService;
 
+    @Autowired
     public OperationsIntelligenceService(SlaRiskService slaRiskService,
                                          TechnicianAssignmentService assignmentService,
                                          OperationalAnomalyService anomalyService,
